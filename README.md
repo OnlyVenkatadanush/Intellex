@@ -1,104 +1,412 @@
 # 🌌 Intellex — Multi-Agent Autonomous Research Platform
 
-Intellex is a production-grade Research Operating System designed to autonomously plan, execute, verify, synthesize, and manage academic and scientific research workflows. Powered by a multi-agent orchestration architecture, it leverages hybrid RAG pipelines, dynamic knowledge graphs, and execution replay tracking to deliver explainable, high-fidelity research reports.
+<div align="center">
+
+### Autonomous Research. Evidence-Driven Intelligence. Explainable Insights.
+
+*An AI-powered Research Operating System that plans, retrieves, verifies, debates, synthesizes, and manages complex research workflows using a multi-agent architecture.*
+
+![Python](https://img.shields.io/badge/Python-3.12+-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-Backend-green)
+![Next.js](https://img.shields.io/badge/Next.js-Frontend-black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue)
+![LangGraph](https://img.shields.io/badge/LangGraph-Agent%20Orchestration-orange)
+![Docker](https://img.shields.io/badge/Docker-Containerized-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+
+</div>
 
 ---
 
-## 🚀 Key Features
+# 🚀 What is Intellex?
 
-*   **Multi-Agent Orchestration**: A sequential cognitive execution pipeline:
-    $$\text{CRO Planner} \longrightarrow \text{Evidence Gatherer} \longrightarrow \text{Analysis Synthesis} \longrightarrow \text{Debate Engine} \longrightarrow \text{Fact Checker} \longrightarrow \text{Citation Formatter} \longrightarrow \text{Memory archiver} \longrightarrow \text{Report Compiler}$$
-*   **Hybrid RAG Pipeline**: Combines semantic search with real-time academic API ingestion (arXiv, PubMed, and Tavily Web Search) and local file ingestion (PDF, DOCX, TXT, CSV).
-*   **Knowledge Graph Engine**: Automatically builds node-link schemas (connecting CONCEPT, SOURCE, FINDING, and QUERY nodes) representing support and contradiction weights.
-*   **Research Replay & Timeline**: Tracks agent step execution logs chronologically, allowing researchers to inspect details of decisions.
-*   **Fact-Checking & Integrity Layer**: Validates claims against source indices. LLM-failed verifications fallback to `INSUFFICIENT_EVIDENCE` with a confidence score cap of `50.0%` to prevent hallucinations.
-*   **Cross-Session Comparison**: Computes a detailed diff of finding sets across multiple research queries, exposing new, deleted, or altered confidence metrics.
+Intellex is a **Research Operating System (ResearchOS)** designed to automate the entire research lifecycle.
+
+Unlike traditional AI assistants that simply answer questions, Intellex:
+
+✅ Plans research strategies
+
+✅ Collects evidence from multiple sources
+
+✅ Detects contradictions
+
+✅ Verifies claims
+
+✅ Generates citations
+
+✅ Builds interactive knowledge graphs
+
+✅ Tracks research evolution over time
+
+✅ Produces explainable research reports
 
 ---
 
-## 🏛 Clean Architecture & Core Stack
+# 🧠 Research Workflow
 
+```text
+User Query
+    │
+    ▼
+Chief Research Officer (CRO)
+    │
+    ▼
+Research Manager
+    │
+ ┌───────────────────────────────┐
+ │      Evidence Layer           │
+ ├───────────────────────────────┤
+ │ Search Agent                  │
+ │ PubMed Agent                  │
+ │ arXiv Agent                   │
+ │ Crossref Agent                │
+ │ Document Intelligence Agent   │
+ └───────────────────────────────┘
+                │
+                ▼
+ ┌───────────────────────────────┐
+ │      Reasoning Layer          │
+ ├───────────────────────────────┤
+ │ Analysis Agent                │
+ │ Debate Agent                  │
+ │ Contradiction Agent           │
+ │ Trend Agent                   │
+ │ Hypothesis Agent              │
+ └───────────────────────────────┘
+                │
+                ▼
+ ┌───────────────────────────────┐
+ │      Quality Layer            │
+ ├───────────────────────────────┤
+ │ Fact Checker                  │
+ │ Citation Engine               │
+ │ Confidence Scorer             │
+ │ Credibility Engine            │
+ └───────────────────────────────┘
+                │
+                ▼
+       Research Report
 ```
-backend/
-├── app/
-│   ├── domain/         # Pure entity definitions and provider contracts (interfaces)
-│   ├── application/    # Repository interfaces
-│   ├── infrastructure/ # ORM Models, DB Repositories, Gemini/Ollama Provider wrappers
-│   ├── presentation/   # FastAPI API endpoints, SSE Stream handlers, and health checks
-│   └── utils/          # Document parsers, Security, and Reliability utilities (retries, circuit breakers)
-```
-
-*   **Backend**: FastAPI, SQLAlchemy (PostgreSQL / SQLite), Pydantic v2
-*   **Frontend**: Next.js 15 (App Router), Vanilla CSS Design System with HSL tokens
-*   **AI Engine**: Gemini 1.5 Flash (primary model), Ollama compatibility
-*   **Observability**: Structured JSON logging, Correlation ID tracing, Detailed Readiness probes
-*   **Testing**: Pytest, Pytest-Asyncio, StaticPool test databases (100% passes)
 
 ---
 
-## 🛠 Setup & Local Development
+# ✨ Core Features
 
-### Prerequisites
-*   Python 3.12+ (or 3.13)
-*   Node.js 18+
-*   Docker & Docker Compose (optional)
+## 🔍 Multi-Agent Research Engine
 
-### 1. Backend Configuration
-Navigate to `backend/`, copy the environment template, and configure your keys:
+* Chief Research Officer (CRO) Planning Agent
+* Evidence Gathering Agents
+* Analysis & Synthesis Agents
+* Debate & Contradiction Resolution
+* Fact Verification Pipeline
+* Automated Citation Generation
+
+---
+
+## 📚 Hybrid RAG Pipeline
+
+Supports:
+
+* Academic Papers (arXiv)
+* Medical Literature (PubMed)
+* Crossref Metadata
+* Web Research (Tavily)
+* PDF Documents
+* DOCX Files
+* TXT Files
+* CSV Files
+
+Combines semantic retrieval with live external research.
+
+---
+
+## 🕸 Interactive Knowledge Graph
+
+Intellex automatically constructs dynamic knowledge graphs.
+
+Features:
+
+* Zoom In / Zoom Out
+* Drag Nodes
+* Search Concepts
+* Expand Relationships
+* Collapse Graph Sections
+* Source-to-Finding Navigation
+* Confidence-Based Visualization
+* Interactive Research Exploration
+
+Node Types:
+
+* Topics
+* Concepts
+* Findings
+* Sources
+* Citations
+* Research Sessions
+
+Relationship Types:
+
+* SUPPORTS
+* CONTRADICTS
+* REFERENCES
+* DERIVED_FROM
+* RELATED_TO
+
+---
+
+## 🎬 Research Replay System
+
+Every research session is fully traceable.
+
+Example:
+
+```text
+09:00 Query Submitted
+09:01 CRO Planning
+09:02 Source Retrieval
+09:03 Evidence Collection
+09:04 Contradiction Detection
+09:05 Debate Phase
+09:06 Verification
+09:07 Report Generation
+09:08 Knowledge Graph Creation
+```
+
+Researchers can replay and inspect every step.
+
+---
+
+## 🛡 Research Integrity Layer
+
+Intellex is designed to minimize hallucinations.
+
+Features:
+
+* Evidence-Based Findings
+* Source Verification
+* Citation Validation
+* Confidence Scoring
+* Contradiction Detection
+* Explainable Conclusions
+
+Verification States:
+
+* VERIFIED
+* PARTIALLY_VERIFIED
+* CONFLICTING_EVIDENCE
+* INSUFFICIENT_EVIDENCE
+* UNVERIFIED
+
+---
+
+## 📈 Knowledge Evolution Engine
+
+Track how knowledge changes over time.
+
+Detect:
+
+* New Findings
+* Updated Findings
+* Deprecated Findings
+* Emerging Trends
+* Research Gaps
+
+Compare current research with previous reports.
+
+---
+
+# 🏗 System Architecture
+
+```text
+Frontend (Next.js)
+        │
+        ▼
+FastAPI API Gateway
+        │
+        ▼
+Research Manager
+        │
+ ┌─────────────────┐
+ │ Agent Layer     │
+ └─────────────────┘
+        │
+        ▼
+RAG Engine
+        │
+        ▼
+Vector Search
+(pgvector)
+        │
+        ▼
+PostgreSQL
+        │
+        ▼
+Knowledge Graph
+```
+
+---
+
+# ⚙ Technology Stack
+
+### Backend
+
+* Python 3.12+
+* FastAPI
+* SQLAlchemy
+* Pydantic v2
+* LangGraph
+* JWT Authentication
+
+### Frontend
+
+* Next.js
+* TypeScript
+* React
+* Server Components
+* Vanilla CSS Design System
+
+### Database
+
+* PostgreSQL
+* pgvector
+
+### AI & Research
+
+* Gemini API
+* Ollama
+* RAG Pipeline
+* Vector Embeddings
+* NLP
+
+### Infrastructure
+
+* Docker
+* Docker Compose
+* Structured Logging
+* Correlation IDs
+* Health Monitoring
+
+---
+
+# 📂 Project Structure
+
+```text
+Intellex/
+│
+├── backend/
+│   ├── domain/
+│   ├── application/
+│   ├── infrastructure/
+│   ├── presentation/
+│   └── utils/
+│
+├── frontend/
+│   ├── app/
+│   ├── components/
+│   └── styles/
+│
+├── docs/
+│
+└── docker-compose.yml
+```
+
+---
+
+# 🚀 Getting Started
+
+## Backend
+
 ```bash
 cd backend
+
 cp .env.example .env
-```
-Ensure you set your `GEMINI_API_KEY` inside `.env`.
 
-Install requirements and launch the API server:
-```bash
 pip install -r requirements.txt
-python -m uvicorn backend.app.main:app --reload --port 8000
-```
-API Documentation will be available locally at: `http://localhost:8000/api/docs`.
 
-### 2. Frontend Configuration
-Navigate to `frontend/`, configure your environment, install dependencies, and launch:
-```bash
-cd ../frontend
-npm install
-npm run dev
+uvicorn backend.app.main:app --reload
 ```
-Open `http://localhost:3000` in your browser.
 
 ---
 
-## 🐳 Running with Docker Compose
+## Frontend
 
-To boot the entire 3-tier containerized stack (PostgreSQL with pgvector, FastAPI Backend, and Next.js Frontend):
+```bash
+cd frontend
+
+npm install
+
+npm run dev
+```
+
+---
+
+## Docker
+
 ```bash
 docker-compose up --build
 ```
-The backend automatically waits until the PostgreSQL database container health check is healthy before initiating the table schema structures.
 
 ---
 
-## 🧪 Testing Suite
+# 📡 API Endpoints
 
-We maintain a rigorous unit and integration test suite verifying authentication guards, document processing, health metrics, and agent logic. Run the tests locally:
+| Method | Endpoint                              | Description             |
+| ------ | ------------------------------------- | ----------------------- |
+| POST   | /api/auth/register                    | Register user           |
+| POST   | /api/auth/login                       | Login                   |
+| POST   | /api/sessions/create                  | Create research session |
+| GET    | /api/sessions/{id}/research           | Execute research        |
+| GET    | /api/sessions/{id}/graph              | Knowledge graph         |
+| GET    | /api/sessions/{id}/replay             | Research replay         |
+| GET    | /api/sessions/{id}/compare/{other_id} | Session comparison      |
+| POST   | /api/documents/upload                 | Upload files            |
+| GET    | /api/health/detailed                  | Health status           |
+
+---
+
+# 🧪 Testing
+
 ```bash
-python -m pytest backend/tests/ -v
+pytest backend/tests -v
 ```
 
+Includes:
+
+* Unit Tests
+* Integration Tests
+* Agent Workflow Tests
+* Authentication Tests
+* Document Processing Tests
+
 ---
 
-## 📖 Key API Endpoints Quick-Start
+# 🎯 Why Intellex?
 
-| Method | Endpoint | Description |
-|---|---|---|
-| **POST** | `/api/auth/register` | User signup (email/password). |
-| **POST** | `/api/auth/login` | User login, returns JWT token. |
-| **POST** | `/api/sessions/create` | Open a new research session query. |
-| **GET** | `/api/sessions/` | List all sessions of the authenticated user (paginated). |
-| **GET** | `/api/sessions/{id}/research` | Execute agent pipeline and stream log timeline (SSE). |
-| **POST** | `/api/documents/upload` | Upload PDF/DOCX/CSV/TXT source file (Max 10MB). |
-| **GET** | `/api/sessions/{id}/graph` | Retrieve nodes/edges matching React Flow schema. |
-| **GET** | `/api/sessions/{id}/replay` | Retrieve agent step timeline. |
-| **GET** | `/api/sessions/{id}/compare/{other_id}` | Compare findings between two sessions. |
-| **GET** | `/api/health/detailed` | Readiness check with DB connection state. |
+Intellex demonstrates:
+
+* Multi-Agent Systems
+* Agentic AI
+* Retrieval Augmented Generation (RAG)
+* Knowledge Graphs
+* Information Retrieval
+* Research Automation
+* FastAPI Backend Engineering
+* System Design
+* PostgreSQL & Vector Search
+* Explainable AI
+
+---
+
+# 📜 License
+
+MIT License
+
+---
+
+<div align="center">
+
+### Built for the future of autonomous research.
+
+**Intellex — Research Beyond Search.**
+
+</div>

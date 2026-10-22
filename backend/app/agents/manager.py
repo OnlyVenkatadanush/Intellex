@@ -80,7 +80,7 @@ class ResearchManager:
             # ── Step 4: Contradiction & Debate ───────────────────────────────
             db_sess.status = "DEBATING"
             self.db.commit()
-            debate = DebateEngine()
+            debate = DebateEngine(self.db)
             state, log = await self._run_step(debate, state)
             yield log
 
@@ -187,16 +187,33 @@ class ResearchManager:
         """
         for f in state.findings:
             try:
-                finding_id = str(uuid.uuid4())
+                finding_id = f.get("finding_id") or str(uuid.uuid4())
+                src_count = f.get("source_count")
+                if src_count is None:
+                    src_count = len(f.get("supporting_sources", []))
+                
+                src_quality = f.get("source_quality_score")
+                if src_quality is None:
+                    src_quality = round(float(f.get("credibility_score", 80.0) or 80.0) / 10.0, 1)
+
                 db_finding = DBFinding(
                     id=finding_id,
                     session_id=session_id,
                     claim=f.get("claim", ""),
-                    confidence_score=float(f.get("confidence_score", 0.0)),
-                    source_count=int(f.get("source_count", 0)),
-                    source_quality_score=float(f.get("source_quality_score", 0.0)),
+                    confidence_score=float(f.get("confidence_score") or 0.0),
+                    source_count=int(src_count),
+                    source_quality_score=float(src_quality),
                     verification_status=f.get("verification_status", "INSUFFICIENT_EVIDENCE"),
-                    consensus_rationale=f.get("consensus_rationale")
+                    consensus_rationale=f.get("consensus_rationale") or f.get("reasoning_trace"),
+                    
+                    supporting_sources=f.get("supporting_sources") or [],
+                    contradicting_sources=f.get("contradicting_sources") or [],
+                    credibility_score=float(f.get("credibility_score") or 0.0),
+                    reasoning_trace=f.get("reasoning_trace"),
+                    evidence_strength=float(f.get("evidence_strength") or 0.0),
+                    cross_source_agreement=float(f.get("cross_source_agreement") or 0.0),
+                    recency_score=float(f.get("recency_score") or 0.0),
+                    contradiction_penalty=float(f.get("contradiction_penalty") or 0.0)
                 )
                 self.db.add(db_finding)
                 self.db.flush()  # Get the ID without full commit
@@ -208,7 +225,13 @@ class ResearchManager:
                         source_title=cit.get("source_title", "Unknown Source"),
                         source_url=cit.get("source_url"),
                         citation_format=cit.get("citation_format", "APA"),
-                        quote=cit.get("quote", "")[:500] if cit.get("quote") else None
+                        quote=cit.get("quote", "")[:500] if cit.get("quote") else None,
+                        
+                        authors=cit.get("authors"),
+                        year=cit.get("year"),
+                        journal=cit.get("journal"),
+                        doi=cit.get("doi"),
+                        source_type=cit.get("source_type")
                     )
                     self.db.add(db_citation)
 

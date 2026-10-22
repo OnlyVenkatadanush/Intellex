@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from backend.app.database import get_db
 from backend.app.utils.auth_helpers import get_current_user
 from backend.app.infrastructure.db.models import (
-    DBUser as User, DBSession, DBFinding, DBExecutionLog
+    DBUser as User, DBSession, DBFinding, DBExecutionLog, DBDebate
 )
 from backend.app.infrastructure.db.graph_models import KnowledgeGraphNode, KnowledgeGraphEdge
 from backend.app.infrastructure.db.models import DBMemory
@@ -254,6 +254,41 @@ async def compare_sessions(
             "total_changed": len(confidence_changes)
         }
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Contradiction Resolution / Debates Endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/{session_id}/debates")
+async def get_session_debates(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retrieve all resolved contradictions/debates for a research session."""
+    _get_session_or_404(session_id, current_user.id, db)
+    
+    debates = (
+        db.query(DBDebate)
+        .filter(DBDebate.session_id == session_id)
+        .order_by(DBDebate.created_at.asc())
+        .all()
+    )
+    
+    return [
+        {
+            "id": d.id,
+            "source_a_claim": d.source_a_claim,
+            "source_b_claim": d.source_b_claim,
+            "conflict_explanation": d.conflict_explanation,
+            "evidence_comparison": d.evidence_comparison,
+            "final_resolution": d.final_resolution,
+            "resolution_confidence": float(d.resolution_confidence),
+            "created_at": d.created_at.isoformat() if d.created_at else None
+        }
+        for d in debates
+    ]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

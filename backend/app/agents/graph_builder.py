@@ -50,17 +50,17 @@ class KnowledgeGraphBuilder:
         session_id = state.session_id
 
         try:
-            # ── Root Query Node ───────────────────────────────────────────────
+            # ── Root Query Node (Topic) ───────────────────────────────────────
             query_node_id = str(uuid.uuid4())
             query_node = KnowledgeGraphNode(
                 id=query_node_id,
                 session_id=session_id,
                 label=state.query[:200],
-                node_type="QUERY",
+                node_type="Topic",
                 description="Root research question"
             )
             self.db.add(query_node)
-            nodes.append({"id": query_node_id, "label": state.query[:80], "type": "QUERY"})
+            nodes.append({"id": query_node_id, "label": state.query[:80], "type": "Topic"})
 
             # ── Concept Nodes (from plan) ──────────────────────────────────────
             concept_node_ids = []
@@ -71,14 +71,14 @@ class KnowledgeGraphBuilder:
                     id=concept_id,
                     session_id=session_id,
                     label=label,
-                    node_type="CONCEPT",
+                    node_type="Concept",
                     description=step.get("reason", "")[:500]
                 )
                 self.db.add(concept_node)
                 concept_node_ids.append(concept_id)
-                nodes.append({"id": concept_id, "label": label[:60], "type": "CONCEPT"})
+                nodes.append({"id": concept_id, "label": label[:60], "type": "Concept"})
 
-                # Edge: QUERY → CONCEPT
+                # Edge: Topic → Concept
                 edge = KnowledgeGraphEdge(
                     id=str(uuid.uuid4()),
                     session_id=session_id,
@@ -103,7 +103,7 @@ class KnowledgeGraphBuilder:
                     id=src_id,
                     session_id=session_id,
                     label=src_label,
-                    node_type="SOURCE",
+                    node_type="Source",
                     description=src.get("content", "")[:500],
                     metadata_json={
                         "url": src.get("url"),
@@ -115,7 +115,7 @@ class KnowledgeGraphBuilder:
                 nodes.append({
                     "id": src_id,
                     "label": src_label[:60],
-                    "type": "SOURCE",
+                    "type": "Source",
                     "url": src.get("url")
                 })
 
@@ -131,22 +131,29 @@ class KnowledgeGraphBuilder:
                     id=f_id,
                     session_id=session_id,
                     label=claim,
-                    node_type="FINDING",
+                    node_type="Finding",
                     confidence=confidence,
-                    description=f.get("consensus_rationale", "")[:500],
-                    metadata_json={"verification_status": verification}
+                    description=f.get("reasoning_trace", "")[:500],
+                    metadata_json={
+                        "verification_status": verification,
+                        "credibility_score": float(f.get("credibility_score", 0.0)),
+                        "evidence_strength": float(f.get("evidence_strength", 0.0)),
+                        "cross_source_agreement": float(f.get("cross_source_agreement", 0.0)),
+                        "recency_score": float(f.get("recency_score", 0.0)),
+                        "contradiction_penalty": float(f.get("contradiction_penalty", 0.0))
+                    }
                 )
                 self.db.add(f_node)
                 finding_node_ids.append(f_id)
                 nodes.append({
                     "id": f_id,
                     "label": claim[:80],
-                    "type": "FINDING",
+                    "type": "Finding",
                     "confidence": confidence,
                     "verification": verification
                 })
 
-                # Edge: QUERY → FINDING (derived from)
+                # Edge: Topic → Finding (derived from)
                 edge = KnowledgeGraphEdge(
                     id=str(uuid.uuid4()),
                     session_id=session_id,
@@ -158,49 +165,84 @@ class KnowledgeGraphBuilder:
                 self.db.add(edge)
                 edges.append({"source": query_node_id, "target": f_id, "type": "DERIVED_FROM"})
 
-                # Edge: SOURCE → FINDING (support relationships)
-                matching = f.get("matching_sources", [])
-                for src_match in matching[:3]:
-                    # Find the source node ID by matching URL
-                    src_url = src_match.get("url", "")
+                # ── Citation Nodes & CITES Edges ──────────────────────────────
+                for cit in f.get("citations", []):
+                    cit_id = str(uuid.uuid4())
+                    cit_node = KnowledgeGraphNode(
+                        id=cit_id,
+                        session_id=session_id,
+                        label=cit.get("source_title", "APA Citation")[:200],
+                        node_type="Citation",
+                        description=cit.get("quote", "")[:500],
+                        metadata_json={
+                            "url": cit.get("source_url"),
+                            "format": cit.get("citation_format"),
+                            "authors": cit.get("authors"),
+                            "year": cit.get("year"),
+                            "journal": cit.get("journal"),
+                            "doi": cit.get("doi")
+                        }
+                    )
+                    self.db.add(cit_node)
+                    nodes.append({
+                        "id": cit_id,
+                        "label": cit.get("source_title", "APA Citation")[:60],
+                        "type": "Citation"
+                    })
+
+                    # Edge: Finding → Citation (CITES)
+                    cites_edge = KnowledgeGraphEdge(
+                        id=str(uuid.uuid4()),
+                        session_id=session_id,
+                        source_node_id=f_id,
+                        target_node_id=cit_id,
+                        relationship_type="CITES",
+                        weight=1.0
+                    )
+                    self.db.add(cites_edge)
+                    edges.append({"source": f_id, "target": cit_id, "type": "CITES"})
+
+                # ── Source → Finding Edges (SUPPORTS / CONTRADICTS) ───────────
+                supporting_urls = f.get("supporting_sources", [])
+                contradicting_urls = f.get("contradicting_sources", [])
+
+                # supporting links
+                for s_url in supporting_urls:
                     for i, src in enumerate(state.evidence[:10]):
-                        if src.get("url") == src_url and i < len(source_node_ids):
-                            rel_type = "SUPPORTS" if verification == "VERIFIED" else "RELATED_TO"
+                        if src.get("url") == s_url and i < len(source_node_ids):
                             support_edge = KnowledgeGraphEdge(
                                 id=str(uuid.uuid4()),
                                 session_id=session_id,
                                 source_node_id=source_node_ids[i],
                                 target_node_id=f_id,
-                                relationship_type=rel_type,
-                                weight=0.8
+                                relationship_type="SUPPORTS",
+                                weight=0.9
                             )
                             self.db.add(support_edge)
                             edges.append({
                                 "source": source_node_ids[i],
                                 "target": f_id,
-                                "type": rel_type
+                                "type": "SUPPORTS"
                             })
-                            break
 
-            # ── Debate/Contradiction Edges ─────────────────────────────────────
-            if state.debates and len(finding_node_ids) >= 2:
-                for debate in state.debates:
-                    if len(finding_node_ids) >= 2:
-                        # Mark first two findings as CONTRADICTS (approximation)
-                        contra_edge = KnowledgeGraphEdge(
-                            id=str(uuid.uuid4()),
-                            session_id=session_id,
-                            source_node_id=finding_node_ids[0],
-                            target_node_id=finding_node_ids[1],
-                            relationship_type="CONTRADICTS",
-                            weight=0.6
-                        )
-                        self.db.add(contra_edge)
-                        edges.append({
-                            "source": finding_node_ids[0],
-                            "target": finding_node_ids[1],
-                            "type": "CONTRADICTS"
-                        })
+                # contradicting links
+                for c_url in contradicting_urls:
+                    for i, src in enumerate(state.evidence[:10]):
+                        if src.get("url") == c_url and i < len(source_node_ids):
+                            contra_edge = KnowledgeGraphEdge(
+                                id=str(uuid.uuid4()),
+                                session_id=session_id,
+                                source_node_id=source_node_ids[i],
+                                target_node_id=f_id,
+                                relationship_type="CONTRADICTS",
+                                weight=0.9
+                            )
+                            self.db.add(contra_edge)
+                            edges.append({
+                                "source": source_node_ids[i],
+                                "target": f_id,
+                                "type": "CONTRADICTS"
+                            })
 
             self.db.commit()
             logger.info(

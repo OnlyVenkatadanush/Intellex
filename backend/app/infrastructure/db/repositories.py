@@ -107,6 +107,11 @@ class SqlAlchemyFindingRepository(FindingRepository):
                 source_url=c.source_url,
                 citation_format=c.citation_format,
                 quote=c.quote,
+                authors=c.authors,
+                year=c.year,
+                journal=c.journal,
+                doi=c.doi,
+                source_type=c.source_type,
                 created_at=c.created_at
             ) for c in f.citations
         ]
@@ -119,6 +124,14 @@ class SqlAlchemyFindingRepository(FindingRepository):
             source_quality_score=float(f.source_quality_score),
             verification_status=f.verification_status,
             consensus_rationale=f.consensus_rationale,
+            supporting_sources=f.supporting_sources,
+            contradicting_sources=f.contradicting_sources,
+            credibility_score=float(f.credibility_score) if f.credibility_score is not None else 0.0,
+            reasoning_trace=f.reasoning_trace,
+            evidence_strength=float(f.evidence_strength) if f.evidence_strength is not None else 0.0,
+            cross_source_agreement=float(f.cross_source_agreement) if f.cross_source_agreement is not None else 0.0,
+            recency_score=float(f.recency_score) if f.recency_score is not None else 0.0,
+            contradiction_penalty=float(f.contradiction_penalty) if f.contradiction_penalty is not None else 0.0,
             citations=citations,
             created_at=f.created_at
         )
@@ -133,6 +146,14 @@ class SqlAlchemyFindingRepository(FindingRepository):
             source_quality_score=finding.source_quality_score,
             verification_status=finding.verification_status,
             consensus_rationale=finding.consensus_rationale,
+            supporting_sources=finding.supporting_sources,
+            contradicting_sources=finding.contradicting_sources,
+            credibility_score=finding.credibility_score,
+            reasoning_trace=finding.reasoning_trace,
+            evidence_strength=finding.evidence_strength,
+            cross_source_agreement=finding.cross_source_agreement,
+            recency_score=finding.recency_score,
+            contradiction_penalty=finding.contradiction_penalty,
             created_at=finding.created_at
         )
         self.db.add(db_finding)

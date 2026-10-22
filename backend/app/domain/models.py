@@ -25,6 +25,11 @@ class CitationDomain(BaseModel):
     source_url: Optional[str] = None
     citation_format: str = "APA"
     quote: Optional[str] = None
+    authors: Optional[List[str]] = None
+    year: Optional[str] = None
+    journal: Optional[str] = None
+    doi: Optional[str] = None
+    source_type: Optional[str] = None
     created_at: datetime
 
 class FindingDomain(BaseModel):
@@ -34,8 +39,16 @@ class FindingDomain(BaseModel):
     confidence_score: float = 0.0
     source_count: int = 0
     source_quality_score: float = 0.0
-    verification_status: str = "INSUFFICIENT_EVIDENCE" # VERIFIED, CONTRADICTED, INSUFFICIENT_EVIDENCE
+    verification_status: str = "INSUFFICIENT_EVIDENCE" # VERIFIED, PARTIALLY_VERIFIED, CONFLICTING_EVIDENCE, INSUFFICIENT_EVIDENCE, UNVERIFIED
     consensus_rationale: Optional[str] = None
+    supporting_sources: Optional[List[str]] = []
+    contradicting_sources: Optional[List[str]] = []
+    credibility_score: float = 0.0
+    reasoning_trace: Optional[str] = None
+    evidence_strength: float = 0.0
+    cross_source_agreement: float = 0.0
+    recency_score: float = 0.0
+    contradiction_penalty: float = 0.0
     citations: List[CitationDomain] = []
     created_at: datetime
 

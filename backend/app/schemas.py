@@ -57,6 +57,11 @@ class CitationResponse(BaseModel):
     source_url: Optional[str] = None
     citation_format: str
     quote: Optional[str] = None
+    authors: Optional[List[str]] = None
+    year: Optional[str] = None
+    journal: Optional[str] = None
+    doi: Optional[str] = None
+    source_type: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -71,6 +76,14 @@ class FindingResponse(BaseModel):
     source_quality_score: float
     verification_status: str
     consensus_rationale: Optional[str] = None
+    supporting_sources: Optional[List[str]] = []
+    contradicting_sources: Optional[List[str]] = []
+    credibility_score: float
+    reasoning_trace: Optional[str] = None
+    evidence_strength: float
+    cross_source_agreement: float
+    recency_score: float
+    contradiction_penalty: float
     citations: List[CitationResponse] = []
     created_at: datetime
 

@@ -159,7 +159,7 @@ export default function DashboardPage() {
   return (
     <>
       {/* ── Navbar ── */}
-      <nav className="navbar">
+      <nav className="navbar" suppressHydrationWarning>
         <div className="logo-container">
           <div className="logo-icon">IX</div>
           <span className="brand-name">Intellex</span>
@@ -186,8 +186,8 @@ export default function DashboardPage() {
         {/* ── Sidebar: Real Session History ── */}
         <aside className="sidebar">
           <h3 style={{
-            fontSize: "0.85rem", color: "var(--text-muted)",
-            textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: "600"
+            fontSize: "0.82rem", color: "#a3a3a3",
+            textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: "700"
           }}>
             Research History
           </h3>
@@ -217,9 +217,9 @@ export default function DashboardPage() {
                 >
                   <span style={{
                     fontSize: "0.88rem", color: "var(--text-primary)",
-                    fontWeight: "500", display: "-webkit-box",
+                    fontWeight: "600", display: "-webkit-box",
                     WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                    overflow: "hidden"
+                    overflow: "hidden", lineHeight: "1.4"
                   }}>
                     {s.original_query}
                   </span>
@@ -227,7 +227,7 @@ export default function DashboardPage() {
                     display: "flex", justifyContent: "space-between",
                     alignItems: "center", marginTop: "0.35rem"
                   }}>
-                    <span style={{ fontSize: "0.72rem", color: getStatusColor(s.status), fontWeight: "500" }}>
+                    <span style={{ fontSize: "0.72rem", color: getStatusColor(s.status), fontWeight: "600" }}>
                       ● {s.status}
                     </span>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -260,16 +260,16 @@ export default function DashboardPage() {
         <main className="main-content">
           {/* Hero Query Card */}
           <div style={{
-            background: "linear-gradient(135deg, rgba(138, 43, 226, 0.1), rgba(0, 255, 255, 0.05))",
-            border: "1px solid var(--border-color)", borderRadius: "16px",
+            background: "#080808",
+            border: "1px solid var(--border-color)", borderRadius: "14px",
             padding: "2.5rem", display: "flex", flexDirection: "column", gap: "1.25rem",
-            boxShadow: "0 4px 30px rgba(0,0,0,0.2)"
+            boxShadow: "0 20px 50px rgba(0,0,0,0.9)"
           }}>
-            <h1 style={{ fontSize: "2.25rem", fontWeight: "700" }}>
+            <h1 style={{ fontSize: "2.25rem", fontWeight: "800", color: "#ffffff", letterSpacing: "-0.03em" }}>
               Launch Autonomous Research
             </h1>
-            <p style={{ color: "var(--text-secondary)", fontSize: "1rem", lineHeight: "1.7" }}>
-              Formulate a research question — the multi-agent system will gather evidence from arXiv, PubMed, and web sources, debate contradictions, fact-check every claim, and synthesize a structured report.
+            <p style={{ color: "#d4d4d4", fontSize: "1rem", lineHeight: "1.7" }}>
+              Formulate a research question — the multi-agent system will gather evidence from Crossref, PubMed, and arXiv, debate contradictions, fact-check every claim, and synthesize a structured dossier.
             </p>
 
             {error && (
@@ -291,7 +291,7 @@ export default function DashboardPage() {
                   style={{ flex: 1, minWidth: "280px", padding: "1rem 1.25rem", fontSize: "1.05rem" }}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="e.g. Does aerobic exercise reduce the risk of Alzheimer's disease?"
+                  placeholder="e.g. Current efficacy and cardiovascular outcomes of GLP-1 receptor agonists"
                   required
                   maxLength={1000}
                   disabled={creating}
@@ -306,14 +306,44 @@ export default function DashboardPage() {
                   {creating ? (
                     <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <span style={{
-                        width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.3)",
-                        borderTopColor: "white", borderRadius: "50%",
+                        width: "14px", height: "14px", border: "2px solid rgba(0,0,0,0.3)",
+                        borderTopColor: "black", borderRadius: "50%",
                         animation: "spin 0.8s linear infinite"
                       }} />
                       Launching...
                     </span>
                   ) : "⚡ Launch Research"}
                 </button>
+              </div>
+
+              {/* Starter Query Chips */}
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "1rem" }}>
+                <span style={{ fontSize: "0.8rem", color: "#a3a3a3", alignSelf: "center", fontWeight: "600" }}>Suggested Topics:</span>
+                {[
+                  "CRISPR off-target detection methods & fidelity",
+                  "Solid-state battery electrolyte scalability",
+                  "GLP-1 receptor agonists and cardiovascular mortality",
+                  "Quantum error correction surface codes threshold"
+                ].map((sample, sIdx) => (
+                  <button
+                    key={sIdx}
+                    type="button"
+                    onClick={() => setQuery(sample)}
+                    style={{
+                      background: "#111111",
+                      border: "1px solid #262626",
+                      color: "#ffffff",
+                      borderRadius: "6px",
+                      padding: "0.35rem 0.85rem",
+                      fontSize: "0.78rem",
+                      fontWeight: "500",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    {sample}
+                  </button>
+                ))}
               </div>
             </form>
 

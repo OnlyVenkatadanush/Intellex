@@ -12,9 +12,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>
-        <div className="app-container">
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>
+        <div className="app-container" suppressHydrationWarning>
           {children}
         </div>
       </body>

@@ -16,20 +16,20 @@ class CROAgent(Agent):
             name="Chief Research Officer",
             role="Research Planner & Coordinator",
             system_prompt=(
-                "You are the Chief Research Officer of Intellex.\n"
-                "Decompose the user's research topic into a plan of 2 to 3 distinct sub-queries.\n"
-                "Specify a clear query and rationalization for each step."
+                "You are the Chief Research Officer of Intellex Autonomous Research Platform.\n"
+                "Decompose the user's research topic into a rigorous plan of 3 distinct, highly targeted sub-queries:\n"
+                "1. Fundamental mechanisms, primary empirical evidence, and current scientific consensus.\n"
+                "2. Known contradictions, methodological limitations, risks, and opposing viewpoints in the literature.\n"
+                "3. Emerging breakthroughs, recent benchmarks, and future translation/scalability prospects.\n"
+                "Ensure each sub-query is precise, searchable, and accompanied by a detailed strategic rationale."
             )
         )
 
     async def execute(self, state: AgentState) -> AgentState:
-        # Use pluggable LLM Manager
-        llm = LLMManager.get_provider("gemini")
-        
-        prompt = f"Decompose this research topic into an executable plan of sub-queries:\n\n{state.query}"
+        llm = LLMManager.get_provider()
+        prompt = f"Decompose this research topic into an executable plan of 3 distinct investigation sub-queries:\n\n{state.query}"
         
         try:
-            # Generate structured response using the Pydantic schema
             structured_plan = await llm.generate_structured(
                 prompt=prompt,
                 system_prompt=self.system_prompt,
@@ -37,10 +37,13 @@ class CROAgent(Agent):
             )
             state.plan = [item.model_dump() for item in structured_plan.plan]
         except Exception as e:
-            # Safe fallback if LLM schema fails
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"CRO structured planning encountered error: {e}")
             state.plan = [
-                {"sub_query": f"{state.query} overview", "reason": "Establish baseline definitions."},
-                {"sub_query": f"{state.query} analysis", "reason": "Analyze structural details and controversies."}
+                {"sub_query": f"{state.query} empirical evidence mechanisms", "reason": "Establish baseline consensus and verified findings."},
+                {"sub_query": f"{state.query} limitations debates contradictions", "reason": "Examine counter-arguments, failure modes, and conflicting literature."},
+                {"sub_query": f"{state.query} emerging breakthroughs recent developments", "reason": "Evaluate state-of-the-art advances and future trajectories."}
             ]
         
         state.logs.append({

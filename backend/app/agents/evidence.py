@@ -40,9 +40,10 @@ class EvidenceGatherer(Agent):
         for step in state.plan:
             sub_query = step.get("sub_query", state.query)
             
-            # Fetch from APIs
+            # Fetch from live APIs
             arxiv_papers = await SearchTools.fetch_arxiv_papers(sub_query, max_results=3)
-            pubmed_papers = await SearchTools.fetch_pubmed_papers(sub_query, max_results=2)
+            pubmed_papers = await SearchTools.fetch_pubmed_papers(sub_query, max_results=3)
+            crossref_papers = await SearchTools.fetch_crossref_papers(sub_query, max_results=3)
             web_findings = await SearchTools.web_search(sub_query, max_results=3)
             
             # Check local documents matching keywords
@@ -53,11 +54,44 @@ class EvidenceGatherer(Agent):
                 if match_count > 0:
                     local_matches.append(doc)
 
-            combined = arxiv_papers + pubmed_papers + web_findings + local_matches
+            combined = arxiv_papers + pubmed_papers + crossref_papers + web_findings + local_matches
             
+            # Robust Deduplication by canonical DOI, normalized URL, and Title
+            import re
+            existing_urls = {e.get("url").strip().rstrip("/").lower() for e in state.evidence if e.get("url")}
+            existing_dois = {e.get("doi").strip().lower() for e in state.evidence if e.get("doi")}
+            existing_titles = {e.get("title").strip().lower() for e in state.evidence if e.get("title")}
+            
+            unique_new = []
             for item in combined:
+                url = item.get("url", "").strip()
+                norm_url = url.rstrip("/").lower()
+                doi = item.get("doi", "").strip()
+                norm_doi = doi.lower() if doi else None
+                title = item.get("title", "").strip().lower()
+
+                # Reject any supplementary deposit files
+                if re.search(r"\.(s\d+|supp\d*)$", norm_url) or (norm_doi and re.search(r"\.(s\d+|supp\d*)$", norm_doi)):
+                    continue
+
+                # Check if already seen
+                if norm_doi and norm_doi in existing_dois:
+                    continue
+                if norm_url and norm_url in existing_urls:
+                    continue
+                if title and len(title) > 15 and title in existing_titles:
+                    continue
+
                 item["query_target"] = sub_query
                 state.evidence.append(item)
+                unique_new.append(item)
+
+                if norm_url:
+                    existing_urls.add(norm_url)
+                if norm_doi:
+                    existing_dois.add(norm_doi)
+                if title:
+                    existing_titles.add(title)
             
             state.logs.append({
                 "agent_name": self.name,

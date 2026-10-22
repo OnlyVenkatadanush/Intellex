@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from backend.app.domain.llm_provider import LLMProvider
 from backend.app.infrastructure.llm.gemini import GeminiProvider
 from backend.app.infrastructure.llm.ollama import OllamaProvider
+from backend.app.infrastructure.llm.groq import GroqProvider
 from backend.app.config import settings
 import json
 
@@ -28,22 +29,54 @@ class MockProvider(LLMProvider):
         title = schema.get("title", "")
         
         # Determine target mock response based on class schema structure/title
-        if "plan" in title.lower() or "Plan" in title:
+        if "plan" in title.lower():
             # Plan models
+            topic = prompt.split('\n')[-1].replace("Topic:", "").strip()
             data = {
                 "plan": [
-                    {"sub_query": f"Core diamagnetism claims in room-temperature superconductivity", "reason": "Analyze structural evidence of zero resistance claims."},
-                    {"sub_query": f"SQUID and transport measurements on copper sulfide impurities", "reason": "Examine counter-arguments regarding phase transition impurities."}
+                    {"sub_query": f"{topic} core research findings and evidence", "reason": "Analyze primary studies, clinical trials, and general consensus."},
+                    {"sub_query": f"{topic} limitations, debates, and secondary factors", "reason": "Identify gaps, opposing viewpoints, or methodological limitations."}
                 ]
             }
-        elif "finding" in title.lower() or "claim" in title.lower() or "Finding" in title:
+        elif "synthesisfindings" in title.lower() or "findings" in title.lower():
+            # SynthesisFindings contains findings (a list of SingleFinding)
+            topic = prompt.split('\n')[0].replace("Topic:", "").strip()
             data = {
-                "claim": "Diamagnetic shielding transition in copper-doped lead apatite is induced by Cu2S phase transition rather than superconductivity.",
-                "confidence_score": 92.5,
-                "source_count": 4,
-                "source_quality_score": 8.5,
+                "findings": [
+                    {
+                        "claim": f"Aerobic exercise significantly reduces the risk of Alzheimer's disease by enhancing neuroplasticity and clearance of beta-amyloid.",
+                        "confidence_score": 88.0,
+                        "consensus_rationale": "Strong consensus in clinical journals showing regular aerobic activity improves cognitive scores."
+                    },
+                    {
+                        "claim": f"While preventive benefits are widely observed, research shows variations in individual response based on genetics (e.g., APOE4 status).",
+                        "confidence_score": 68.0,
+                        "consensus_rationale": "A subset of literature suggests genotypic variations influence the extent of neuroprotection."
+                    }
+                ]
+            }
+        elif "debateresolution" in title.lower() or "debate" in title.lower():
+            data = {
+                "debate_summary": f"Discrepancies exist between clinical studies on active Alzheimer's patients vs healthy cohorts.",
+                "consensus_claim": "Aerobic exercise is established as an effective preventive intervention, though efficacy in reversing advanced cognitive decline is limited.",
+                "resolved_confidence": 75.0
+            }
+        elif "factcheckfeedback" in title.lower() or "factcheck" in title.lower():
+            data = {
+                "supporting_sources": [],
+                "contradicting_sources": [],
                 "verification_status": "VERIFIED",
-                "consensus_rationale": "Independent tests confirm Cu2S impurities experience a structural transition at 370K, matching resistivity drops."
+                "evidence_strength": 85.0,
+                "rationale": "Evidence from PubMed and academic references corroborates that aerobic exercise decreases risk metrics and supports brain health."
+            }
+        elif "finding" in title.lower() or "claim" in title.lower():
+            data = {
+                "claim": f"Synthesized claim assertion for {prompt[:40]}.",
+                "confidence_score": 80.0,
+                "source_count": 2,
+                "source_quality_score": 8.0,
+                "verification_status": "VERIFIED",
+                "consensus_rationale": "Consistent reports confirm the primary claims match the underlying references."
             }
         else:
             # Default empty initializer or try dictionary construction
@@ -63,18 +96,27 @@ class MockProvider(LLMProvider):
 
 class LLMManager:
     @staticmethod
-    def get_provider(provider_name: str = "gemini") -> LLMProvider:
+    def get_provider(provider_name: str = None) -> LLMProvider:
         """
         Pluggable provider resolver. Matches string identifiers to concrete classes.
         """
-        p_name = provider_name.lower()
-        if p_name == "gemini":
-            if settings.GEMINI_API_KEY:
+        p_name = (provider_name or settings.LLM_PROVIDER).lower()
+        if p_name == "groq":
+            if settings.GROQ_API_KEY or settings.ENVIRONMENT != "test":
+                return GroqProvider()
+            return MockProvider()
+        elif p_name == "gemini":
+            if settings.GEMINI_API_KEY or settings.ENVIRONMENT != "test":
                 return GeminiProvider()
-            else:
-                return MockProvider()
+            return MockProvider()
         elif p_name == "ollama":
             return OllamaProvider()
+        elif p_name == "mock":
+            return MockProvider()
         
-        # Default fallback
+        # Automatic fallback cascade: Groq -> Gemini -> Mock
+        if settings.GROQ_API_KEY:
+            return GroqProvider()
+        if settings.GEMINI_API_KEY:
+            return GeminiProvider()
         return MockProvider()

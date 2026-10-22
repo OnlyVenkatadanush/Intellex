@@ -169,8 +169,8 @@ async def with_timeout(coro, timeout_seconds: float, fallback=None):
 
 # ── Pre-configured circuit breakers for external services ─────────────────────
 gemini_breaker = CircuitBreaker(
-    failure_threshold=5,
-    recovery_timeout=60.0,
+    failure_threshold=7,
+    recovery_timeout=15.0,
     name="gemini-api"
 )
 
@@ -190,4 +190,10 @@ tavily_breaker = CircuitBreaker(
     failure_threshold=3,
     recovery_timeout=30.0,
     name="tavily-api"
+)
+
+groq_breaker = CircuitBreaker(
+    failure_threshold=5,
+    recovery_timeout=15.0,
+    name="groq-api"
 )

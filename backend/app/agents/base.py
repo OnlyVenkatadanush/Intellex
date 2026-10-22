@@ -28,64 +28,16 @@ class Agent:
 
     async def call_llm(self, prompt: str, schema_format: Optional[str] = None) -> str:
         """
-        Calls Gemini or falls back to a template-based Mock LLM
-        if no API keys are provided. Uses proper error propagation.
+        Executes text generation using LLMManager with fallback-resilient Gemini provider.
         """
-        # 1. Try Gemini
-        if settings.GEMINI_API_KEY:
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
-                headers = {"Content-Type": "application/json"}
-                body = {
-                    "contents": [
-                        {
-                            "role": "user",
-                            "parts": [{"text": f"{self.system_prompt}\n\nUser Request:\n{prompt}"}]
-                        }
-                    ],
-                    "generationConfig": {
-                        "temperature": 0.2
-                    }
-                }
-                async with httpx.AsyncClient() as client:
-                    response = await client.post(url, headers=headers, json=body, timeout=30.0)
-                    if response.status_code == 200:
-                        res_json = response.json()
-                        text = res_json["candidates"][0]["content"]["parts"][0]["text"]
-                        return text
-                    else:
-                        # Log non-200 but still fall through to mock
-                        pass
-            except httpx.TimeoutException:
-                pass
-            except Exception:
-                pass
-
-        # 2. Try OpenAI
-        if settings.OPENAI_API_KEY:
-            try:
-                url = "https://api.openai.com/v1/chat/completions"
-                headers = {
-                    "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
-                    "Content-Type": "application/json"
-                }
-                body = {
-                    "model": "gpt-4o-mini",
-                    "messages": [
-                        {"role": "system", "content": self.system_prompt},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.2
-                }
-                async with httpx.AsyncClient() as client:
-                    response = await client.post(url, headers=headers, json=body, timeout=30.0)
-                    if response.status_code == 200:
-                        return response.json()["choices"][0]["message"]["content"]
-            except Exception:
-                pass
-
-        # 3. Fallback: Template Mock Generator
-        return self._generate_mock_response(prompt, schema_format)
+        from backend.app.infrastructure.llm.manager import LLMManager
+        try:
+            provider = LLMManager.get_provider()
+            return await provider.generate_text(prompt=prompt, system_prompt=self.system_prompt)
+        except Exception as e:
+            if settings.ENVIRONMENT == "test":
+                return self._generate_mock_response(prompt, schema_format)
+            raise RuntimeError(f"Agent {self.name} failed to generate LLM response: {e}") from e
 
     def _generate_mock_response(self, prompt: str, schema_format: Optional[str]) -> str:
         """

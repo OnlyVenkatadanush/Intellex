@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from backend.app.config import settings
-from backend.app.database import engine, Base
+from backend.app.database import engine, Base, init_db
 from backend.app.presentation.api.auth import router as auth_router
 from backend.app.presentation.api.sessions import router as sessions_router
 from backend.app.presentation.api.documents import router as documents_router
@@ -29,12 +29,13 @@ logger = logging.getLogger("intellex.api")
 # ── Application Lifespan (startup/shutdown hooks) ─────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize database tables
+    # Startup: Initialize database tables & apply schema upgrades
     logger.info("Initializing Intellex Research API...")
-    Base.metadata.create_all(bind=engine)
+    init_db(engine)
     logger.info(
         f"Database initialized. Environment: {settings.ENVIRONMENT}. "
-        f"DB: {settings.DATABASE_URL.split('@')[-1] if '@' in settings.DATABASE_URL else 'sqlite'}"
+        f"LLM Provider: {settings.LLM_PROVIDER.upper()} "
+        f"({'Groq: ' + settings.GROQ_MODEL if settings.LLM_PROVIDER == 'groq' else 'Gemini: ' + settings.GEMINI_MODEL})."
     )
     yield
     # Shutdown
@@ -55,7 +56,12 @@ app = FastAPI(
 # In development: permissive. In production: strict origin list from env var.
 cors_origins = settings.cors_origins_list
 if not settings.is_production:
-    cors_origins = ["*"]
+    cors_origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+    ]
 
 app.add_middleware(
     CORSMiddleware,

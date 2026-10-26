@@ -147,19 +147,31 @@ class DebateEngine(Agent):
             
             debate_result = resolution.model_dump()
             
-            # Normalize confidence rating: if model returned 0.0 - 1.0 (e.g. 0.78), scale to 78.0%
-            raw_conf = debate_result.get("resolved_confidence", 85.0)
-            try:
-                raw_conf_float = float(raw_conf)
-                if 0.0 < raw_conf_float <= 1.0:
-                    raw_conf_float *= 100.0
-                debate_result["resolved_confidence"] = round(min(100.0, max(0.0, raw_conf_float)), 2)
-            except Exception:
-                debate_result["resolved_confidence"] = 85.0
+            # Mathematically derive arbitrated consensus confidence from constituent findings
+            constituent_scores = [
+                float(f.get("confidence_score", 85.0))
+                for f in state.findings
+                if f.get("confidence_score") and f.get("verification_status") != "INSUFFICIENT_EVIDENCE"
+            ]
+            if constituent_scores:
+                mean_constituent = sum(constituent_scores) / len(constituent_scores)
+                # Calibrate stability: if contradictions or tensions are identified, apply moderate stability discount
+                summary_lower = debate_result.get("debate_summary", "").lower()
+                stability_discount = 3.0 if any(w in summary_lower for w in ["contradict", "tension", "trade-off", "conflict"]) else 0.0
+                derived_conf = round(max(50.0, min(95.0, mean_constituent - stability_discount)), 1)
+                derivation_explanation = (
+                    f"Calibrated from the mean confidence of constituent findings ({round(mean_constituent, 1)}%) "
+                    f"with dialectical stability adjustment (-{stability_discount}%)."
+                )
+            else:
+                derived_conf = 85.0
+                derivation_explanation = "Calibrated baseline for dialectical consensus synthesis."
 
+            debate_result["resolved_confidence"] = derived_conf
+            debate_result["derivation_formula"] = derivation_explanation
             state.debates.append(debate_result)
 
-            # Consolidate supporting sources across synthesized findings rather than blind slice
+            # Consolidate ALL supporting sources across synthesized findings (preserve all constituent evidence)
             consensus_sources = []
             seen_src = set()
             for f in state.findings:
@@ -168,14 +180,14 @@ class DebateEngine(Agent):
                         seen_src.add(s)
                         consensus_sources.append(s)
 
-            # Insert resolved finding matching the 9-field schema
+            # Insert resolved finding matching the 9-field schema with ALL constituent sources
             state.findings.append({
                 "finding_id": str(uuid.uuid4()),
                 "claim": debate_result.get("consensus_claim"),
-                "supporting_sources": consensus_sources[:4] if consensus_sources else ([src["url"] for src in state.evidence[:2]] if state.evidence else []),
+                "supporting_sources": consensus_sources if consensus_sources else ([src["url"] for src in state.evidence] if state.evidence else []),
                 "contradicting_sources": [],
-                "confidence_score": debate_result.get("resolved_confidence"),
-                "credibility_score": 85.0,
+                "confidence_score": derived_conf,
+                "credibility_score": 88.0,
                 "verification_status": "VERIFIED",
                 "reasoning_trace": debate_result.get("debate_summary"),
                 "generated_at": datetime.utcnow().isoformat()

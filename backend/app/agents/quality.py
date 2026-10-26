@@ -197,8 +197,14 @@ class FactCheckerAgent(Agent):
                                 if len(matched_indices) >= 2:
                                     break
 
-                # Gather unique matched supporting sources (capped at top 3 most relevant)
-                for s_idx in sorted(matched_indices)[:3]:
+                # Also include any pre-attached supporting sources (e.g., from consensus synthesis)
+                existing_urls = set(finding.get("supporting_sources") or [])
+                for src_idx, src in enumerate(state.evidence):
+                    if src.get("url") and src.get("url") in existing_urls:
+                        matched_indices.add(src_idx)
+
+                # Gather all matched supporting sources (preserving multi-source consensus)
+                for s_idx in sorted(matched_indices):
                     supporting_sources.append(state.evidence[s_idx])
 
                 # Resolve contradicting sources
@@ -235,7 +241,7 @@ class FactCheckerAgent(Agent):
                         recency_score * 0.2 -
                         contradiction_penalty
                     )
-                    confidence = round(min(100.0, max(0.0, raw_confidence)), 2)
+                    confidence = round(min(100.0, max(0.0, raw_confidence)), 1)
                     
                     if n_contra > 0:
                         status = "CONFLICTING_EVIDENCE"
@@ -266,16 +272,16 @@ class FactCheckerAgent(Agent):
                 "supporting_sources": [s.get("url") for s in supporting_sources if s.get("url")],
                 "contradicting_sources": [s.get("url") for s in contradicting_sources if s.get("url")],
                 "confidence_score": confidence,
-                "credibility_score": round(credibility_score, 2),
+                "credibility_score": round(credibility_score, 1),
                 "verification_status": status,
                 "reasoning_trace": rationale,
                 "generated_at": finding.get("generated_at", datetime.utcnow().isoformat()),
-                "evidence_strength": round(evidence_strength, 2),
-                "cross_source_agreement": round(cross_source_agreement, 2),
-                "recency_score": round(recency_score, 2),
-                "contradiction_penalty": round(contradiction_penalty, 2),
+                "evidence_strength": round(evidence_strength, 1),
+                "cross_source_agreement": round(cross_source_agreement, 1),
+                "recency_score": round(recency_score, 1),
+                "contradiction_penalty": round(contradiction_penalty, 1),
                 "source_count": len(supporting_sources),
-                "source_quality_score": round(credibility_score / 10.0, 2),
+                "source_quality_score": round(credibility_score / 10.0, 1),
                 "matching_sources": supporting_sources
             })
 
@@ -408,60 +414,103 @@ class CitationAgent(Agent):
             "log_type": "INFO"
         })
 
-        # Global canonical citation registry: maps normalized DOI or URL to single unique citation record
+        # 1. Global canonical citation registry: map all processed evidence sources in order
         citation_registry: Dict[str, Dict[str, Any]] = {}
         ordered_citations: List[Dict[str, Any]] = []
+        evidence_idx_to_ref: Dict[int, str] = {}
 
+        for e_idx, src in enumerate(state.evidence):
+            metadata = self._parse_source_metadata(src)
+            doi = metadata.get("doi")
+            url = src.get("url") or ""
+            canonical_key = f"doi:{doi.lower().strip()}" if doi else f"url:{url.lower().strip().rstrip('/')}"
+
+            if canonical_key in citation_registry:
+                existing_cit = citation_registry[canonical_key]
+                evidence_idx_to_ref[e_idx + 1] = existing_cit["id"]
+            else:
+                cit_id = f"REF-{len(ordered_citations) + 1}"
+                formatted = self._format_citation(
+                    title=src.get("title", "Untitled Work"),
+                    url=src.get("url", ""),
+                    source=src.get("source", "Web"),
+                    authors=metadata["authors"],
+                    year=metadata["year"],
+                    journal=metadata["journal"],
+                    doi=metadata["doi"]
+                )
+                
+                citation_record = {
+                    "id": cit_id,
+                    "canonical_key": canonical_key,
+                    "source_title": formatted,
+                    "source_url": src.get("url"),
+                    "citation_format": self.citation_format,
+                    "quote": (src.get("content") or "")[:200],
+                    "authors": metadata["authors"],
+                    "year": metadata["year"],
+                    "journal": metadata["journal"],
+                    "doi": metadata["doi"],
+                    "source_type": metadata["source_type"]
+                }
+                citation_registry[canonical_key] = citation_record
+                ordered_citations.append(citation_record)
+                evidence_idx_to_ref[e_idx + 1] = cit_id
+
+        # 2. Attach citations to findings without artificial truncation
         for finding in state.findings:
             matching_sources = finding.get("matching_sources", [])
             finding_citations = []
+            seen_cit_ids = set()
             
-            # Max 2 distinct supporting sources per claim
-            for src in matching_sources[:2]:
+            for src in matching_sources:
                 metadata = self._parse_source_metadata(src)
                 doi = metadata.get("doi")
                 url = src.get("url") or ""
-                
-                # Canonical registry key: prefer normalized DOI, fallback to normalized URL
                 canonical_key = f"doi:{doi.lower().strip()}" if doi else f"url:{url.lower().strip().rstrip('/')}"
 
                 if canonical_key in citation_registry:
-                    # Reuse existing canonical citation! Zero duplication across bibliography slots!
-                    existing_cit = citation_registry[canonical_key]
-                    finding_citations.append(existing_cit)
-                else:
-                    cit_id = f"REF-{len(ordered_citations) + 1}"
-                    formatted = self._format_citation(
-                        title=src.get("title", "Untitled Work"),
-                        url=src.get("url", ""),
-                        source=src.get("source", "Web"),
-                        authors=metadata["authors"],
-                        year=metadata["year"],
-                        journal=metadata["journal"],
-                        doi=metadata["doi"]
-                    )
-                    
-                    citation_record = {
-                        "id": cit_id,
-                        "canonical_key": canonical_key,
-                        "finding_id": finding.get("finding_id") or finding.get("id"),
-                        "source_title": formatted,
-                        "source_url": src.get("url"),
-                        "citation_format": self.citation_format,
-                        "quote": (src.get("content") or "")[:200],
-                        "authors": metadata["authors"],
-                        "year": metadata["year"],
-                        "journal": metadata["journal"],
-                        "doi": metadata["doi"],
-                        "source_type": metadata["source_type"]
-                    }
-                    citation_registry[canonical_key] = citation_record
-                    ordered_citations.append(citation_record)
-                    finding_citations.append(citation_record)
-            
-            # Attach properly mapped, deduplicated citation records to finding
+                    cit = citation_registry[canonical_key]
+                    if cit["id"] not in seen_cit_ids:
+                        seen_cit_ids.add(cit["id"])
+                        finding_citations.append(cit)
+
             finding["citations"] = finding_citations
 
-        # state.citations now contains only DISTINCT, authentic scholarly references
+            # 3. Post-process reasoning trace to replace raw "Source X" with "[[REF-X]]"
+            rationale = finding.get("reasoning_trace") or ""
+            if rationale:
+                # Expand ranges like Sources 1-3 or Sources 1 to 3
+                def expand_range(m):
+                    start, end = int(m.group(1)), int(m.group(2))
+                    return "Sources " + ", ".join(str(i) for i in range(start, end + 1))
+                text = re.sub(r"\bSources?\s+(\d+)\s*(?:-|to)\s*(\d+)\b", expand_range, rationale, flags=re.IGNORECASE)
+
+                # Match compound lists like 'Sources 1, 2, 3, and 4'
+                def replace_compound(m):
+                    full = m.group(0)
+                    nums = re.findall(r"\b\d+\b", full)
+                    refs = [f"[[{evidence_idx_to_ref[int(n)]}]]" for n in nums if int(n) in evidence_idx_to_ref]
+                    if len(refs) == 1:
+                        return refs[0]
+                    elif len(refs) == 2:
+                        return f"{refs[0]} and {refs[1]}"
+                    elif len(refs) > 2:
+                        return ", ".join(refs[:-1]) + f", and {refs[-1]}"
+                    return full
+                text = re.sub(r"\bSources?\s+\d+(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+)\d+)+\b", replace_compound, text, flags=re.IGNORECASE)
+
+                # Match single 'Source X' (handling 0-based fallback)
+                def replace_single(m):
+                    num = int(m.group(1))
+                    if num == 0 and 1 in evidence_idx_to_ref:
+                        num = 1
+                    ref_key = evidence_idx_to_ref.get(num)
+                    return f"[[{ref_key}]]" if ref_key else m.group(0)
+                text = re.sub(r"\bSources?\s+(\d+)\b", replace_single, text, flags=re.IGNORECASE)
+
+                finding["reasoning_trace"] = text
+
+        # state.citations contains all distinct, authentic scholarly references
         state.citations = ordered_citations
         return state
